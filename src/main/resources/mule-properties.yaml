@@ -1,7 +1,4 @@
 bigquery:
-  pvt-key-path: "/Users/djuang/Workspaces/studio-seven-three-four/google-bigquery/src/main/resources/mulesoft-general-8fccdb5d5728.p12"
-  service-account: ""
-  driver-class-name: "com.simba.googlebigquery.jdbc42.Driver"
-  project-id: "mulesoft-general"
-  
-  access-token: ""
+  appName: "mulesoft-general"
+  issuer: ""
+  projectId: "mulesoft-general"
