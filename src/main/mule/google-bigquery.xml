@@ -34,7 +34,6 @@ output application/json
 ---
 {
 	query: "SELECT Top_Term FROM ehc-djuang-434900.mule_demo_dataset.top_terms LIMIT 10",
-	maxResults: "1",
 	useLegacySql: false
 }]]></ee:set-payload>
 			</ee:message>
@@ -93,7 +92,7 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<bigquery:insert-job doc:name="Insert Job" doc:id="f54f0035-2a03-49fe-a3c4-e3fcb52913af" config-ref="BigQuery_OAuth2_Configuration">
+		<bigquery:insert-job doc:name="Insert Job" doc:id="f54f0035-2a03-49fe-a3c4-e3fcb52913af" config-ref="BigQuery_JWT_Configuration">
 			<bigquery:job-values-content ><![CDATA[#[payload]]]></bigquery:job-values-content>
 		</bigquery:insert-job>
 		<ee:transform doc:name="Transform Message" doc:id="18f73a5f-4b11-4f58-8c5f-b4161e5197f7" >
