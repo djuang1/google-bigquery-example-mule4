@@ -1,4 +1,7 @@
 bigquery:
-  appName: "mulesoft-general"
+  pkid: ""
+  pk: ""
   issuer: ""
-  projectId: "mulesoft-general"
+  projectId: ""
+  consumerKey: ""
+  consumerSecret: ""

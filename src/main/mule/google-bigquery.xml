@@ -12,15 +12,20 @@ http://www.mulesoft.org/schema/mule/bigquery http://www.mulesoft.org/schema/mule
 	</http:listener-config>
 
 	<configuration-properties doc:name="Configuration properties" doc:id="17cbfbd5-c7b7-4d70-9560-feaa187f23e9" file="mule-properties.yaml" />
-	<bigquery:config name="BigQuery__Configuration" doc:name="BigQuery  Configuration" doc:id="bd6a4868-82b0-4263-bfa3-8ef41994d5a7" >
+	<bigquery:config name="BigQuery_JWT_Configuration" doc:name="BigQuery Configuration" doc:id="bd6a4868-82b0-4263-bfa3-8ef41994d5a7" >
 		<bigquery:jwt-connection 
-		appName="${bigquery.appName}" 
-		privateKeyId="" 
 		issuer="${bigquery.issuer}" 
-		projectId="${bigquery.projectId}" 
-		privateKey=""/>
+		projectId="${bigquery.projectId}" privateKeyId="${bigquery.pkid}" privateKey="${bigquery.pk}"/>
 	</bigquery:config>
-	<flow name="google-bigqueryFlow" doc:id="37570353-2813-48ee-8678-f46c9f588eaa" >
+	
+	<bigquery:config name="BigQuery_OAuth2_Configuration" doc:name="BigQuery  Configuration" doc:id="0663dcf1-5c4f-48a2-a1cf-324b736013da" >
+		<bigquery:oauth2-connection projectId="${bigquery.projectId}">
+			<bigquery:oauth-authorization-code consumerKey="${bigquery.consumerKey}" consumerSecret="${bigquery.consumerSecret}" />
+			<bigquery:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="/callback" authorizePath="/authorize" externalCallbackUrl="http://localhost:8081/callback" />
+		</bigquery:oauth2-connection>
+	</bigquery:config>
+	
+	<flow name="bg-query-jwt-example-flow" doc:id="37570353-2813-48ee-8678-f46c9f588eaa" >
 		<http:listener doc:name=":8081/read" doc:id="0e97f08c-9445-4570-93b9-e555d4c6fe8c" config-ref="HTTP_Listener_config" path="/read"/>
 		<ee:transform doc:name="Transform Message" doc:id="fb157852-ac91-4505-b21c-4cb056663340" >
 			<ee:message >
@@ -28,15 +33,101 @@ http://www.mulesoft.org/schema/mule/bigquery http://www.mulesoft.org/schema/mule
 output application/json
 ---
 {
-	query: "SELECT * FROM mfrm.data LIMIT 5",
-	maxResults: "1"
+	query: "SELECT Top_Term FROM ehc-djuang-434900.mule_demo_dataset.top_terms LIMIT 10",
+	maxResults: "1",
+	useLegacySql: false
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<bigquery:query doc:name="Query" doc:id="8c0d9064-ae58-4258-9dbc-4d84b9d9dbec" config-ref="BigQuery__Configuration">
+		<bigquery:query doc:name="Query" doc:id="8c0d9064-ae58-4258-9dbc-4d84b9d9dbec" config-ref="BigQuery_JWT_Configuration">
 			<bigquery:query-values-content ><![CDATA[#[payload]]]></bigquery:query-values-content>
 		</bigquery:query>
 		<ee:transform doc:name="Transform Message" doc:id="02203d60-2da7-4a83-bd04-8e13c1ee9f7a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	
+	<flow name="bg-oauth-insert-example-flow" doc:id="b8d3af9a-b8e7-4193-a55c-cba3b38eaaa9" >
+		<http:listener doc:name=":8081/insert" doc:id="332af904-1a10-44e2-b17e-243400934971" config-ref="HTTP_Listener_config" path="/insert"/>
+		<ee:transform doc:name="Transform Message" doc:id="e04ce404-6ee0-42b0-9b3e-12b952423321" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	configuration: {
+		load: {
+			schema: {
+				fields: [{
+					name: "customer_id",
+					"type": "INTEGER"
+				},{
+					name: "first_name",
+					"type": "STRING"
+				},{
+					name: "last_name",
+					"type": "STRING"
+				},{
+					name: "email",
+					"type": "STRING"
+				},{
+					name: "phone_number",
+					"type": "STRING"
+				}]
+			},
+			sourceUris: "gs://mule-bucket/customer.csv",
+			writeDisposition: "WRITE_APPEND",
+			destinationTable: {
+				datasetId: "mule_demo_dataset",
+				tableId: "customer_data",
+				projectId: "ehc-djuang-434900"
+			}
+		},
+		jobType: "LOAD"
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<bigquery:insert-job doc:name="Insert Job" doc:id="f54f0035-2a03-49fe-a3c4-e3fcb52913af" config-ref="BigQuery_OAuth2_Configuration">
+			<bigquery:job-values-content ><![CDATA[#[payload]]]></bigquery:job-values-content>
+		</bigquery:insert-job>
+		<ee:transform doc:name="Transform Message" doc:id="18f73a5f-4b11-4f58-8c5f-b4161e5197f7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="bt-oauth-query-example-flow" doc:id="6950991d-008e-4a8e-aa2f-de67695ce2a8" >
+		<http:listener doc:name=":8081/query" doc:id="8ea0a5ea-670a-4bb7-a427-1e8319b62d8c" config-ref="HTTP_Listener_config" path="/query"/>
+		<bigquery:query doc:name="Query" doc:id="acd21fa3-0c0a-40f1-9134-c9e2b5f69d4b" config-ref="BigQuery_OAuth2_Configuration">
+			<bigquery:query-values-content><![CDATA[#[output application/json
+---
+{
+	query: "SELECT Top_Term FROM ehc-djuang-434900.mule_demo_dataset.top_terms LIMIT 10",
+	useLegacySql: false
+}]]]></bigquery:query-values-content>
+		</bigquery:query>
+		<ee:transform doc:name="Transform Message" doc:id="22ac48c7-098d-4191-a34c-c50eb2ed2aab" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="bg-get-query-results-example-flow" doc:id="80b25d58-b65f-40a5-a318-8c36fd8acdfe" >
+		<http:listener doc:name=":8081/get" doc:id="4e5f9a44-cad7-44c5-ab79-c5d02b21e17c" config-ref="HTTP_Listener_config" path="/get"/>
+		<bigquery:get-query-results doc:name="Get Query Results" doc:id="4169738b-234d-4330-a34d-7d643567ef4d" config-ref="BigQuery_OAuth2_Configuration" jobId="bquxjob_1786f0d4_18daf336572" />
+		<ee:transform doc:name="Transform Message" doc:id="980824fa-95fa-4a5f-9ef3-4873adb58e2c" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
